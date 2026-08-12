@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a 16-year-old race in SQLite&#x27;s WAL survived until Tailscale checkpointed too hard — HN, Explained</title>
+<meta name="description" content="Tailscale spent six months chasing 19 unexplained database corruption incidents and traced them to a 16-year-old race condition in SQLite&#x27;s WAL checkp">
+<meta property="og:title" content="How a 16-year-old race in SQLite&#x27;s WAL survived until Tailscale checkpointed too hard">
+<meta property="og:description" content="Tailscale spent six months chasing 19 unexplained database corruption incidents and traced them to a 16-year-old race condition in SQLite&#x27;s WAL checkpointing — a bug the SQLite team fixed in 3.51.3.">
+<meta property="og:url" content="https://ibrhmvk.github.io/hn-explained/p/2026-08-13-sqlite-wal-reset-bug.html">
+<meta property="og:site_name" content="HN, Explained">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary">
+<meta property="article:published_time" content="2026-08-13">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How a 16-year-old race in SQLite's WAL survived until Tailscale checkpointed too hard", "description": "Tailscale spent six months chasing 19 unexplained database corruption incidents and traced them to a 16-year-old race condition in SQLite's WAL checkpointing \u2014 a bug the SQLite team fixed in 3.51.3.", "datePublished": "2026-08-13", "url": "https://ibrhmvk.github.io/hn-explained/p/2026-08-13-sqlite-wal-reset-bug.html", "about": "Tailscale Traces Database Corruption to 16y/o SQLite WAL-Reset Bug", "publisher": {"@type": "Organization", "name": "HN, Explained"}}</script>
+<link rel="alternate" type="application/rss+xml" title="HN, Explained" href="../feed.xml">
+<link rel="stylesheet" href="../style.css?v=2e8715a4">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗞️</text></svg>">
+</head>
+<body class="">
+<header>
+  <a class="brand" href="../index.html">🗞️ HN, Explained</a>
+  <p class="tagline">The day's top Hacker News story, explained visually. Every day. Fully automated.</p>
+</header>
+<main>
+<article>
+<h1>How a 16-year-old race in SQLite&#x27;s WAL survived until Tailscale checkpointed too hard</h1>
+<div class="pills"><span class="pill">2026-08-13</span><span class="pill">▲ 566</span><a class="pill" href="https://tailscale.com/blog/sqlite-wal-reset-bug" target="_blank" rel="noopener">tailscale.com ↗</a><a class="pill" href="https://news.ycombinator.com/item?id=49272832" target="_blank" rel="noopener">94 comments ↗</a></div>
+<div class="explainer-embed">
+  <iframe src="https://scrimba.com/explain/guide0d14lebi9" loading="lazy" allowfullscreen
+          title="Interactive explainer: How a 16-year-old race in SQLite&#x27;s WAL survived until Tailscale checkpointed too hard"></iframe>
+  <div class="controls-cover" aria-hidden="true"></div>
+</div>
+<p class="explainer-fallback"><a href="https://scrimba.com/explain/guide0d14lebi9" target="_blank" rel="noopener">Player not loading? Open the explainer on Scrimba ↗</a></p>
+<p>SQLite is often held up as the most heavily tested piece of software most of us will ever run. So when <a href="https://tailscale.com/blog/sqlite-wal-reset-bug">Tailscale published a postmortem</a> tracing months of database corruption to a race condition that had been sitting in SQLite's write-ahead log code for at least sixteen years, it hit the top of Hacker News fast. The story has everything: an unreproducible bug, production-only telemetry, the SQLite team building custom debugging tooling, and a fix that landed upstream in SQLite 3.51.3.</p><h2>Nineteen corruptions, zero pattern</h2><p>Starting last August, Tailscale's control plane suffered 19 separate SQLite corruption incidents over six months. Each one forced them to halt the affected shard, so tailnets on it lost access to the admin console and API until a backup was restored. The usual debugging playbook went nowhere: no correlation with deploys, customers, load, or hardware, and the failures were sometimes hours apart, sometimes weeks. Synthetic reproduction attempts all failed.</p><p>The first real clue came from infrastructure built for recovery rather than debugging. To shrink restore times, Tailscale had started streaming every SQL modification to a separate transaction log. SQLite is single-writer with serializable transactions, so replaying that log against a known-good backup should reconstruct the database exactly. Instead, replay exposed something that should be impossible: data committed by one transaction was invisible to later transactions. That ruled out application bugs and pointed squarely at the storage layer.</p><h2>The race inside the checkpoint</h2><p>In WAL mode, SQLite doesn't modify the main database file on every write. Transactions append changed pages to a separate write-ahead log, and a periodic <em>checkpoint</em> copies those pages back into the main file, after which the WAL can be reset and reused. Tailscale runs an unusual configuration: they take manual control of checkpointing and run it aggressively, which lets them do fast, consistent backups.</p><p>Working with SQLite's professional support team, they got a purpose-built debugging tool: a shim called <code>tmstmpvfs</code> that wraps SQLite's virtual filesystem layer and traces low-level disk operations. The traces revealed the fatal interleaving. If a write transaction commits and resets the WAL at one precise moment during a checkpoint, the checkpointer gets confused: it marks pages as already copied into the main database when they never were. No error is raised. The pages are simply lost, and later transactions write pages that reference the missing ones — a silently inconsistent, corrupt database.</p><p>The window is only a few instructions wide, which is why the bug hid for sixteen years. Most applications let SQLite checkpoint automatically and never hammer that code path; some VFS configurations use exclusive locking and bypass the vulnerable shared-memory coordination entirely. Tailscale's aggressive manual checkpointing made the collision statistically inevitable. The fix in SQLite 3.51.3 is a check rather than a redesign: the checkpoint function now detects that another thread has reset the WAL underneath it and bails out instead of losing pages.</p><h2>Fifteen minutes versus sixteen years</h2><p>The best detail in the <a href="https://news.ycombinator.com/item?id=49272832">HN thread</a> comes from Antithesis, the deterministic-simulation-testing company: they report their system finds this exact bug in roughly fifteen minutes, because simulation explores thread interleavings systematically instead of waiting for production traffic to stumble into a few-instruction window. Another commenter pointed to a TLA+ model of WAL checkpointing that independently rediscovered the same flaw through formal methods. Sixteen years of real-world usage and one of the industry's most rigorous test suites missed what schedule exploration finds before lunch.</p><p>There's a satisfying epilogue, too. Tailscale instrumented their SQLite driver to log a warning — named <code>SQLitePartyMode</code> — whenever a write and a WAL reset overlap. Two months after deploying the fixed SQLite, the warning fired and no corruption followed: direct evidence the patch prevented an incident that would previously have destroyed data.</p><h2>Who should care</h2><p>If you run SQLite with default settings, you were almost certainly never at risk, but upgrade to 3.51.3+ anyway. The broader lessons travel further. Running boring technology in a non-standard way — here, manual aggressive checkpointing — moves you onto paths the ecosystem hasn't tested for you. Transaction-log replay is a cheap way to turn "the database is corrupt" into "here is the exact impossible state," and it's worth building before you need it. And for anyone maintaining concurrent code: races this narrow are found by deterministic simulation or formal modeling, not by waiting. Sixteen years of production traffic is a worse fuzzer than fifteen minutes of the right tool.</p>
+</article>
+<a class="back" href="../index.html">← All posts</a>
+</main>
+<footer>
+  <!-- AD SLOT: paste your EthicalAds / Carbon snippet here -->
+  <p>Generated automatically with Claude Code + Scrimba Explain.</p>
+</footer>
+</body>
+</html>
