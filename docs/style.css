@@ -1,0 +1,114 @@
+:root {
+  --bg: #f7f8fa; --fg: #0f172a; --muted: #64748b;
+  --accent: #6366f1; --accent-2: #8b5cf6;
+  --card: #ffffff; --border: #e2e8f0; --code: #f1f5f9;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 8px 24px -12px rgba(15, 23, 42, .12);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0a0c12; --fg: #e7ecf3; --muted: #8fa0b5;
+          --accent: #818cf8; --accent-2: #a78bfa;
+          --card: #12151d; --border: #242a3a; --code: #0e1118;
+          --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -12px rgba(0, 0, 0, .55); }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0 auto; max-width: 720px; padding: 2.5rem 1.25rem 4rem;
+  color: var(--fg);
+  background:
+    radial-gradient(56rem 26rem at 50% -8rem,
+      color-mix(in oklab, var(--accent) 13%, transparent), transparent 70%),
+    var(--bg);
+  font: 16.5px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+header { margin-bottom: 2.75rem; }
+.brand {
+  display: inline-block; font-size: 1.5rem; font-weight: 800;
+  letter-spacing: -.02em; text-decoration: none;
+  background: linear-gradient(100deg, var(--fg) 30%, var(--accent) 75%, var(--accent-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.tagline { color: var(--muted); margin: .35rem 0 0; font-size: .95rem; }
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+h1 { font-size: clamp(1.65rem, 4.5vw, 2.25rem); line-height: 1.2;
+     letter-spacing: -.025em; font-weight: 800; margin: 0 0 .9rem; }
+article h2 { font-size: 1.28rem; letter-spacing: -.015em; font-weight: 700;
+             margin: 2.4rem 0 .7rem; }
+
+.pills { display: flex; flex-wrap: wrap; gap: .45rem; margin: 0 0 1rem; }
+.pill {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .78rem; font-weight: 550; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: .22rem .7rem; text-decoration: none; background: var(--card);
+  white-space: nowrap;
+}
+a.pill:hover { color: var(--accent); border-color: var(--accent); }
+.pill .dot { width: .5rem; height: .5rem; border-radius: 50%;
+             background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+
+/* index cards */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 1.35rem 1.5rem; margin-bottom: 1.1rem;
+  box-shadow: var(--shadow);
+  transition: transform .18s ease, border-color .18s ease;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.card h2 { margin: 0 0 .4rem; font-size: 1.18rem; letter-spacing: -.015em; }
+.card h2 a { text-decoration: none; color: var(--fg); }
+.card h2 a:hover { color: var(--accent); }
+.card .summary { margin: 0 0 .9rem; color: var(--muted); font-size: .95rem; }
+.card .pills { margin: 0; }
+
+/* explainer player: breaks out of the text column, capped at 1000px */
+.explainer-embed { position: relative; width: min(94vw, 1000px);
+                   aspect-ratio: 16 / 10;
+                   border: 1px solid var(--border); border-radius: 16px;
+                   overflow: hidden; background: #0d1526;
+                   box-shadow: var(--shadow);
+                   margin: 1.5rem calc((100% - min(94vw, 1000px)) / 2); }
+.explainer-embed iframe { position: absolute; inset: 0; width: 100%;
+                          height: 100%; border: 0; }
+/* Scrimba's player has no hide-controls option, so on hover-capable devices
+   we mask its control bar and reveal it while the player is hovered. */
+@media (hover: hover) {
+  .explainer-embed .controls-cover { position: absolute; left: 0; right: 0;
+      bottom: 0; height: 52px; background: #16181d; pointer-events: none;
+      opacity: 1; transition: opacity .25s ease; }
+  .explainer-embed:hover .controls-cover { opacity: 0; }
+}
+.explainer-fallback { text-align: center; font-size: .85rem;
+                      color: var(--muted); margin: -.4rem 0 2rem; }
+.explainer-fallback a { color: var(--muted); }
+.explainer-fallback a:hover { color: var(--accent); }
+
+pre { background: var(--code); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.1rem 1.25rem; overflow-x: auto;
+      font-size: .84rem; line-height: 1.6; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+p code, li code { background: var(--code); border: 1px solid var(--border);
+                  border-radius: 5px; padding: .1rem .35rem; font-size: .85em; }
+img { max-width: 100%; border-radius: 12px; }
+
+.back { display: inline-block; margin-top: 2.5rem; font-size: .9rem;
+        text-decoration: none; }
+
+footer { margin-top: 4rem; color: var(--muted); font-size: .84rem;
+         border-top: 1px solid var(--border); padding-top: 1.25rem; }
+
+/* homepage: centered hero + responsive card grid */
+body.home { max-width: 1040px; }
+.home header { text-align: center; margin: 1.5rem 0 3rem; }
+.home .brand { font-size: 2rem; }
+.home .tagline { font-size: 1.05rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+         gap: 1.1rem; }
+.cards .card { margin-bottom: 0; display: flex; flex-direction: column; }
+.cards .card .pills { margin-top: auto; }
+.home footer { text-align: center; }
