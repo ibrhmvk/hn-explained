@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Daily pipeline: pick repo -> generate explainer + article (headless Claude)
+# Daily pipeline: pick HN story -> generate explainer + article (headless Claude)
 # -> rebuild site -> push. Invoked by launchd; safe to run manually.
 set -uo pipefail
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
@@ -9,11 +9,11 @@ LOG="logs/$(date +%F).log"
 exec >>"$LOG" 2>&1
 echo "=== run_daily $(date) ==="
 
-REPO_JSON="$(python3 scripts/pick_repo.py)" || { echo "no new repo to cover"; exit 0; }
-echo "picked: $REPO_JSON"
+CANDIDATES_JSON="$(python3 scripts/pick_story.py)" || { echo "no eligible story today"; exit 0; }
+echo "candidates: $CANDIDATES_JSON"
 
 PROMPT="$(cat prompts/daily.md)
-$REPO_JSON"
+$CANDIDATES_JSON"
 
 claude -p "$PROMPT" \
   --allowedTools "Read,Write,Edit,WebFetch,WebSearch,ToolSearch,Bash(python3:*),Bash(curl:*),mcp__claude_ai_Explain__start_explainer_stream,mcp__claude_ai_Explain__append_explainer_chunk,mcp__claude_ai_Explain__finish_explainer_stream" \
