@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ibrhmvk.github.io/hn-explained/sitemap.xml

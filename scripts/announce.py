@@ -13,7 +13,7 @@ import sys
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SITE_URL = "https://ibrhmvk.github.io/trending-explained"
+SITE_URL = "https://ibrhmvk.github.io/hn-explained"
 CONFIG = os.path.join(ROOT, "data", "announce-config.json")
 STATE = os.path.join(ROOT, "data", "announced.json")
 
