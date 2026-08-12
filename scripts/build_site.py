@@ -112,7 +112,7 @@ def render_index(posts):
 </article>""")
     content = ('<div class="cards">\n' + "\n".join(cards) + "\n</div>"
                if cards else "<p>First post coming soon.</p>")
-    return PAGE.format(title=SITE_NAME, description=TAGLINE, base="",
+    return PAGE.format(title=esc(SITE_NAME), description=esc(TAGLINE), base="",
                        site=SITE_NAME, tagline=TAGLINE, content=content,
                        cssv=css_version(), bodyclass="home",
                        meta=og_meta(SITE_NAME, TAGLINE, SITE_URL + "/"))
@@ -136,8 +136,8 @@ def render_post(p):
 </article>
 <a class="back" href="../index.html">← All posts</a>"""
     url = f"{SITE_URL}/p/{p['slug']}.html"
-    return PAGE.format(title=f"{p['title']} — {SITE_NAME}",
-                       description=p["summary"][:150], base="../",
+    return PAGE.format(title=esc(f"{p['title']} — {SITE_NAME}"),
+                       description=esc(p["summary"][:150]), base="../",
                        site=SITE_NAME, tagline=TAGLINE, content=content,
                        cssv=css_version(), bodyclass="",
                        meta=og_meta(p["title"], p["summary"], url, article=p))

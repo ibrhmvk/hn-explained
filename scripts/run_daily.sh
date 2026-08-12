@@ -19,7 +19,7 @@ claude -p "$PROMPT" \
   --allowedTools "Read,Write,Edit,WebFetch,WebSearch,ToolSearch,Bash(python3:*),Bash(curl:*),mcp__claude_ai_Explain__start_explainer_stream,mcp__claude_ai_Explain__append_explainer_chunk,mcp__claude_ai_Explain__finish_explainer_stream" \
   || { echo "claude run failed"; exit 1; }
 
-python3 scripts/build_site.py
+python3 scripts/build_site.py || { echo "build failed"; exit 1; }
 python3 scripts/announce.py || true
 
 if [[ -n "$(git status --porcelain)" ]]; then

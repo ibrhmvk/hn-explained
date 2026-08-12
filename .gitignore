@@ -2,3 +2,4 @@ logs/
 data/claim-links.txt
 data/announce-config.json
 data/announced.json
+__pycache__/

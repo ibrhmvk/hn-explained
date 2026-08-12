@@ -67,7 +67,7 @@ def main():
         if p["slug"] in announced:
             continue
         url = f"{SITE_URL}/p/{p['slug']}.html"
-        text = f"{p['title']}\n\n{p['repo']} · {p['summary']}"
+        text = f"{p['title']}\n\n{p.get('domain') or 'news.ycombinator.com'} · {p['summary']}"
         # bluesky caps posts at 300 chars; keep the url intact at the end
         budget = 300 - len(url) - 2
         if len(text) > budget:
