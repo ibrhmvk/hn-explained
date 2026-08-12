@@ -1,59 +1,64 @@
 #!/usr/bin/env python3
-"""Pick today's repo: the highest-starred repo created in the last 3 weeks
-that we haven't covered yet. Prints a JSON blob to stdout, or nothing if
-no candidate is found."""
-import json
+"""Pick today's HN candidates: current front-page stories with >=100 points
+that we haven't covered yet (keyed by hn_id in data/posts/). Prints a JSON
+array of up to 10 candidates (the daily prompt picks the most explainable
+one), or exits 3 if there are none."""
 import glob
+import json
 import os
 import sys
-import urllib.parse
 import urllib.request
-from datetime import date, timedelta
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MIN_STARS = 500
+MIN_POINTS = 100
+ALGOLIA_URL = "https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30"
 
 
-def covered_repos():
+def covered_ids():
     seen = set()
     for path in glob.glob(os.path.join(ROOT, "data", "posts", "*.json")):
         try:
             with open(path) as f:
-                seen.add(json.load(f)["repo"].lower())
-        except (KeyError, ValueError):
+                seen.add(int(json.load(f)["hn_id"]))
+        except (KeyError, ValueError, TypeError):
             pass
     return seen
 
 
-def search(query):
-    url = (
-        "https://api.github.com/search/repositories?q="
-        + urllib.parse.quote(query)
-        + "&sort=stars&order=desc&per_page=30"
-    )
-    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
-                                               "User-Agent": "trending-explained"})
+def eligible(hits, seen_ids, min_points=MIN_POINTS):
+    out = []
+    for h in hits:
+        try:
+            hn_id = int(h["objectID"])
+        except (KeyError, ValueError, TypeError):
+            continue
+        points = h.get("points") or 0
+        if points < min_points or hn_id in seen_ids or not h.get("title"):
+            continue
+        out.append({
+            "hn_id": hn_id,
+            "title": h["title"],
+            "url": h.get("url") or None,
+            "points": points,
+            "num_comments": h.get("num_comments") or 0,
+            "hn_url": f"https://news.ycombinator.com/item?id={hn_id}",
+        })
+    out.sort(key=lambda c: c["points"], reverse=True)
+    return out[:10]
+
+
+def fetch_front_page():
+    req = urllib.request.Request(ALGOLIA_URL,
+                                 headers={"User-Agent": "hn-explained"})
     with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.load(resp)["items"]
+        return json.load(resp)["hits"]
 
 
 def main():
-    since = (date.today() - timedelta(days=21)).isoformat()
-    seen = covered_repos()
-    for item in search(f"created:>{since} stars:>{MIN_STARS}"):
-        if item["full_name"].lower() in seen:
-            continue
-        print(json.dumps({
-            "repo": item["full_name"],
-            "url": item["html_url"],
-            "description": item["description"] or "",
-            "stars": item["stargazers_count"],
-            "language": item["language"] or "",
-            "created_at": item["created_at"],
-        }, indent=2))
-        return
-    print("", end="")
-    sys.exit(3)  # nothing new to cover today
+    candidates = eligible(fetch_front_page(), covered_ids())
+    if not candidates:
+        sys.exit(3)  # nothing eligible today
+    print(json.dumps(candidates, indent=2))
 
 
 if __name__ == "__main__":
